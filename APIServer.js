@@ -28,7 +28,7 @@ module.exports =
             RouteRegister.add('GET', 'accounts');
             RouteRegister.add('POST', 'accounts', 'register');
             RouteRegister.add('GET', 'accounts', 'verify');
-            RouteRegister.add('POST', 'accounts', 'logout');
+            RouteRegister.add('GET', 'accounts', 'logout');
             RouteRegister.add('PUT', 'accounts', 'modify');
             RouteRegister.add('DELETE', 'accounts', 'remove');
         }
