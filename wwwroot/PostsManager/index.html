@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Posts Manager</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" rel="stylesheet">
+        <link rel="stylesheet"
+            href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+        <link rel="stylesheet" href="css/site.css">
+        <link rel="icon" href="favicon.ico">
+    </head>
+
+    <body>
+        <div class="mainContainer">
+            <div class="headerPanel">
+                <div class="headerLayout">
+                    <img src="favicon.ico" alt="" data-toggle="tooltip" style="width:80px; margin-left:10px"
+                        title="Gestionnaire de nouvelles - Auteur Nicolas Chourot - Collège Lionel-Groulx">
+                    <span class="header">Gestionnaire de nouvelles </span>
+                    <span class="cmd fa fa-plus-square" id="newPostCmd" title="Ajouter un nouvelle"
+                        data-toggle="tooltip"></span>
+                    <span class="cmd fa fa-search" title="Afficher/masquer la barre de recherche"
+                        data-toggle="tooltip"></span>
+                </div>
+                <div id="searchBar">
+                    <div class="searchBarLayout">
+                        <select id="searchCategory" class="form-control">
+                            <!-- filled programmatically-->
+                        </select>
+                        <span>
+                            <!-- skip a column -->
+                        </span>
+                        <input type="search" id="searchTitle" class="form-control" placeholder="Recherche de favoris" />
+                        <span>
+                            <!-- skip a column -->
+                        </span>
+                        <span class="cmd fa fa-refresh"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="scrollContainer">
+                <div id="postsList">
+                    <!-- filled programmatically-->
+                </div>
+            </div>
+            <!-- Dialogs containers-->
+            <div>
+                <div id="postDlg">
+                    <form id="postForm">
+                        <input type="hidden" id="Id_input" value="0">
+                        <input type="hidden" id="date_input" value="0">
+                        <label for="category_input">Catégorie</label>
+                        <input type="text" id="category_input" class="form-control" required
+                            invalidMessage="Obligatoire">
+
+                        <label for="title_input">Titre</label>
+                        <input type="text" id="title_input" class="form-control" required invalidMessage="Obligatoire">
+
+                        <label for="text_input">Text</label>
+                        <textarea id="text_input" class="form-control" required invalidMessage="Obligatoire"></textarea>
+
+                        <label for="image_url_input">Url d'image</label>
+                        <input type="url" id="image_url_input" class="form-control URL" required
+                            invalidMessage="Lien invalide">
+                        <div id="imageContainer"></div>
+                    </form>
+                </div>
+                <div id="confirmDeleteDlg">
+                    <span id="confirmationMessage"></span>
+                </div>
+                <div id="errorDlg">
+                    <span id="errorMessage"></span>
+                </div>
+            </div>
+        </div>
+        <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.maskedinput/1.4.1/jquery.maskedinput.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+        <script src="js/customValidation.js"></script>
+        <script src="js/api.js"></script>
+        <script src="js/date.js"></script>
+        <script defer>
+            const periodicRefreshPeriod = 5;
+            let holdCheckETag = false;
+            let currentETag = "";
+            let createMode = true;
+            let searchCategory = "";
+            let searchTitle = "";
+            let hideSearchBar = true;
+            let postIdToDelete = 0; // used by confirmDeleteDlg
+            let selectedCategory = "";
+            let postsCount = 5;
+            let previousScrollPosition = 0;
+            let appendMode = false;
+
+            init_UI();
+            HEAD(checkETag, error);
+            setInterval(() => { HEAD(checkETag, error) }, periodicRefreshPeriod * 1000);
+
+            function checkETag(ETag) {
+                if (!holdCheckETag && ETag != currentETag) {
+                    currentETag = ETag;
+                    getPostsList();
+                }
+            }
+
+            function getPostsList(refresh = true) {
+                appendMode = !refresh;
+                function prepareQueryString() {
+                    let queryString = appendMode ?
+                        `?sort=Date,desc&offset=${postsCount++}&limit=${1}` :
+                        `?sort=Date,desc&offset=${0}&limit=${postsCount}`;
+                    if (!hideSearchBar) {
+                        selectedCategory = $("#searchCategory").val();
+                        let searchTitle = $("#searchTitle").val();
+                        if (selectedCategory != "")
+                            queryString += "&Category=" + selectedCategory;
+                        if (searchTitle != "")
+                            queryString += "&Title=*" + searchTitle + "*";
+                    }
+                    return queryString;
+                }
+                GET_ALL(refreshCategoryList, error, "?fields=Category");
+                GET_ALL(refreshPostsList, error, prepareQueryString());
+            }
+            function refreshCategoryList(categories) {
+                $("#searchCategory").empty();
+                $("#searchCategory").append("<option value=''>Toutes les catégories</option>");
+                for (let item of categories) {
+                    let category = item.Category;
+                    let selected = (selectedCategory == category ? " selected " : "");
+                    $("#searchCategory").append(`<option value='${category}' ${selected}>${category}</option>`);
+                }
+            }
+            function refreshPostsList(posts, ETag) {
+                function makeImage(url) {
+                    let link = $(`<a href='${url}' target='_blank'></a>`)
+                    link.append($(`<div class='postImage' style="background-image:url('${url}')">`));
+                    return link;
+                }
+                function insertIntoPostList(post) {
+                    let catElem = $(`<div class="postCategory">${post.Category}</div>`);
+                    let titElem = $(`<div  class="postTitle">${post.Title}</div>`);
+                    let texElem = $(`<div class="postText partialCollapsed">${post.Text}</div>`);
+                    let datElem = $(`<div class="postDate">${convertToFrenchDate(parseInt(post.Date))}</div>`);
+                    let editCmd = $(`<div class="cmd editCmd fa fa-pencil-square" postid="${post.Id}" title="Editer ${post.Title}" data-toggle="tooltip">`);
+                    let deleteCmd = $(`<div class="cmd deleteCmd fa fa-window-close" postid="${post.Id}" title="Effacer ${post.Title}" data-toggle="tooltip">`);
+                    let postHeader = $("<div class='postHeader'>");
+                    let postRow = $("<div class='postLayout postRow'>");
+                    let maskCollapse = $("<div class='maskCollapse'>");
+                    let showMore = $("<div class='collapseCmd showMore'>Afficher plus ...</div>");
+                    texElem.append(maskCollapse);
+                    texElem.append(showMore);
+                    postHeader.append(catElem);
+                    postHeader.append(editCmd);
+                    postHeader.append(deleteCmd);
+                    postRow.append(postHeader);
+                    postRow.append(titElem);
+                    postRow.append(makeImage(post.ImageUrl));
+                    postRow.append(datElem);
+                    postRow.append(texElem);
+                    $("#postsList").append(postRow);
+                }
+                currentETag = ETag;
+                previousScrollPosition = $(".scrollContainer").scrollTop();
+                if (!appendMode) $("#postsList").empty();
+
+                if (appendMode && posts.length == 0)
+                    postsCount--;
+
+                for (let post of posts) {
+                    insertIntoPostList(post);
+                }
+
+                $(".scrollContainer").scrollTop(previousScrollPosition);
+                $(".editCmd").off();
+                $(".deleteCmd").off();
+                $(".showMore").off();
+                $(".editCmd").click(e => { editPost(e) });
+                $(".deleteCmd").click(e => { deletePost(e) });
+                $(".showMore").click(function (e) {
+                    let parent = $(this).parent();
+                    if (parent.hasClass('partialCollapsed')) {
+                        parent.removeClass('partialCollapsed');
+                        $(this).text("Afficher moins...");
+                    } else {
+                        parent.addClass('partialCollapsed');
+                        $(this).text("Afficher plus...");
+                    }
+                });
+                $('[data-toggle="tooltip"]').tooltip();
+            }
+
+            function error(status) {
+                let errorMessage = "";
+                switch (status) {
+                    case 0:
+                        errorMessage = "Le service ne répond pas";
+                        break;
+                    case 400:
+                    case 422:
+                        errorMessage = "Requête invalide";
+                        break;
+                    case 404:
+                        errorMessage = "Service ou données introuvables";
+                        break;
+                    case 409:
+                        errorMessage = "Conflits de données: Hyperlien existe déjà";
+                        break;
+                    case 500:
+                        errorMessage = "Erreur interne du service";
+                        break;
+                    default: break;
+                }
+                $("#errorMessage").text(errorMessage);
+                $("#errorDlg").dialog('open');
+            }
+
+            function newPost() {
+                holdCheckETag = true;
+                createMode = true;
+                resetPostForm();
+                $("#postDlg").dialog('option', 'title', 'Ajout de nouvelle');
+                $("#postDlgOkBtn").text("Ajouter");
+                $("#postDlg").dialog('open');
+            }
+            function editPost(e) {
+                holdCheckETag = true;
+                createMode = false;
+                GET_ID(e.target.getAttribute("postid"), postToForm, error);
+                holdCheckETag = true;
+                console.log($(".scrollContainer").scrollTop())
+                $("#postDlg").dialog('option', 'title', 'Modification de nouvelle');
+                $("#postDlgOkBtn").text("Modifier");
+                $("#postDlg").dialog('open');
+            }
+            function deletePost(e) {
+                holdCheckETag = true;
+                postIdToDelete = e.target.getAttribute("postid")
+                GET_ID(
+                    postIdToDelete,
+                    post => {
+                        $("#confirmationMessage").html("Voulez-vous vraiment effacer le nouvelle <b>" + post.Title + "</b>?")
+                    },
+                    error
+                );
+                holdCheckETag = true;
+                $("#confirmDlg").dialog('option', 'title', 'Retrait de nouvelle...');
+                $("#confirmDeleteDlgOkBtn").text("Effacer");
+                $("#confirmDeleteDlg").dialog('open');
+            }
+
+            function resetPostForm() {
+                $("#Id_input").val("0");
+                $("#date_input").val(Date.now());
+                $("#title_input").val("");
+                $("#text_input").val("");
+                $("#image_url_input").val("");
+                $("#category_input").val("");
+                setPostImageInput();
+            }
+            function postFromForm() {
+                if ($("#postForm")[0].checkValidity()) {
+                    let post = {
+                        Id: parseInt($("#Id_input").val()),
+                        Title: $("#title_input").val(),
+                        Text: $("#text_input").val(),
+                        ImageUrl: $("#image_url_input").val(),
+                        Category: $("#category_input").val(),
+                        Date: $("#date_input").val()
+                    };
+                    return post;
+                } else {
+                    $("#postForm")[0].reportValidity()
+                }
+                return false;
+            }
+            function postToForm(post) {
+                $("#Id_input").val(post.Id);
+                $("#date_input").val(post.Date);
+                $("#title_input").val(post.Title);
+                $("#text_input").val(post.Text);
+                $("#image_url_input").val(post.ImageUrl);
+                $("#category_input").val(post.Category);
+                setPostImageInput();
+            }
+            function setPostImageInput() {
+                $("#imageContainer").empty();
+                let url = $("#image_url_input").val();
+                $("#imageContainer").append($(`<div class='image_input' style="background-image:url('${url}'">)`));
+            }
+
+            function init_UI() {
+                $("#newPostCmd").click(newPost)
+                $("#searchCategory").change(() => {
+                    selectedCategory = $("#searchCategory").val();
+                    $(".scrollContainer").scrollTop(0);
+                    getPostsList();
+                })
+                $("#image_url_input").on('input', () => { setPostImageInput(); })
+                $("#image_url_input").change(() => { setPostImageInput(); })
+                $(".fa-refresh").click(e => { getPostsList() })
+                $(".fa-search").click(e => {
+                    hideSearchBar = !hideSearchBar;
+                    if (hideSearchBar)
+                        $("#searchBar").hide();
+                    else
+                        $("#searchBar").show();
+                    getPostsList();
+                })
+
+                $("#postDlg").dialog({
+                    title: "...",
+                    autoOpen: false,
+                    modal: true,
+                    show: { effect: 'fade', speed: 400 },
+                    hide: { effect: 'fade', speed: 400 },
+                    width: 700,
+                    minWidth: 700,
+                    maxWidth: 700,
+                    height: 940,
+                    minHeight: 940,
+                    maxHeight: 940,
+                    position: { my: "top", at: "top", of: window },
+                    buttons: [{
+                        id: "postDlgOkBtn",
+                        text: "Title will be changed dynamically",
+                        click: function () {
+                            let post = postFromForm();
+                            if (post) {
+                                if (createMode) {
+                                    POST(post, getPostsList, error);
+                                    $(".scrollContainer").scrollTop(0);
+                                }
+                                else
+                                    PUT(post, getPostsList, error);
+                                resetPostForm();
+                                holdCheckETag = false;
+                                $(this).dialog("close");
+                            }
+                        }
+                    },
+                    {
+                        text: "Annuler",
+                        click: function () {
+                            holdCheckETag = false;
+                            $(this).dialog("close");
+                        }
+                    }]
+                });
+
+                $("#confirmDeleteDlg").dialog({
+                    title: "Attention!",
+                    autoOpen: false,
+                    modal: true,
+                    show: { effect: 'fade', speed: 400 },
+                    hide: { effect: 'fade', speed: 400 },
+                    width: 500, minWidth: 500, maxWidth: 500,
+                    height: 230, minHeight: 230, maxHeight: 230,
+                    position: { my: "top", at: "top", of: window },
+                    buttons: [{
+                        id: "confirmDeleteDlgOkBtn",
+                        text: "Oui",
+                        click: function () {
+                            holdCheckETag = false;
+                            if (postIdToDelete)
+                                DELETE(postIdToDelete, getPostsList, error);
+                            postIdToDelete = 0;
+                            $(this).dialog("close");
+                        }
+                    },
+                    {
+                        text: "Annuler",
+                        click: function () {
+                            holdCheckETag = false;
+                            postIdToDelete = 0;
+                            $(this).dialog("close");
+                        }
+                    }]
+                });
+
+                $("#errorDlg").dialog({
+                    title: "Erreur...",
+                    autoOpen: false,
+                    modal: true,
+                    show: { effect: 'fade', speed: 400 },
+                    hide: { effect: 'fade', speed: 400 },
+                    width: 500, minWidth: 500, maxWidth: 500,
+                    height: 230, minHeight: 230, maxHeight: 230,
+                    position: { my: "top", at: "top", of: window },
+                    buttons: [{
+                        text: "Fermer",
+                        click: function () {
+                            holdCheckETag = false;
+                            postIdToDelete = 0;
+                            $(this).dialog("close");
+                        }
+                    }]
+                });
+
+                $(".scrollContainer").scroll(function () {
+                    if ($(".scrollContainer").scrollTop() + $(".scrollContainer").innerHeight() >= $("#postsList").height()) {
+                        getPostsList(false);
+                    }
+                });
+            }
+        </script>
+    </body>
+
+</html>

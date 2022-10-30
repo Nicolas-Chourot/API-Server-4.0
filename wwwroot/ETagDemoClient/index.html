@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta author="Nicolas Chourot" content="Demo of API service call">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Document</title>
+        <style>
+            .mainContainer {
+                width: 30%;
+                min-width: 550px;
+                margin: auto;
+                border: 1px solid lightgray;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif
+            }
+
+            .header {
+                font-size: 25px;
+                font-weight: bold;
+                border-bottom: 1px solid lightgray;
+                padding: 10px;
+                text-align: center;
+                background-color: lightgray;
+            }
+
+            div2 {
+                border: 1px solid red;
+            }
+
+            .dataGrid {
+                display: grid;
+                grid-template-columns: 200px 45px auto;
+            }
+
+            .headCell {
+                font-size: 20px;
+                font-weight: bold;
+                padding: 10px;
+                border-bottom: 1px solid lightgray;
+            }
+
+            .dataCell {
+                font-size: 20px;
+                color: black;
+                background-color: rgb(255, 255, 255);
+                padding: 5px;
+                border: 1px solid white;
+            }
+
+            .favicon {
+                width: 32px;
+                text-align: center;
+                vertical-align: middle;
+            }
+
+            .text {
+                padding-top: 5px;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                overflow: hidden;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="mainContainer">
+            <div class="header">
+                Liste des favoris
+            </div>
+            <div class="dataGrid">
+                <div class="headCell"> Catégorie </div>
+                <div class="headCell"> </div>
+                <div class="headCell"> Titre </div>
+            </div>
+            <div class="dataGrid" id="dataGrid">
+                <!-- Contenu injecté par la méthode fillDataGrid() -->
+            </div>
+        </div>
+
+        <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
+        <script defer>
+            const Host = "http://localhost:5000";
+            const API = "/api/bookmarks";
+            const periodicRefreshPeriod = 5;
+            let currentETag = "";
+
+            webAPI_HEAD(checkETag);
+            setInterval(() => {
+                webAPI_HEAD(checkETag);
+            }, periodicRefreshPeriod * 1000);
+            function checkETag(ETag) {
+                if (ETag != currentETag) {
+                    currentETag = ETag;
+                    webAPI_GET_ALL(fillDataGrid, "?sort=Category&sort=Title");
+                }
+            }
+            function webAPI_HEAD(successCallBack) {
+                $.ajax({
+                    url: Host + API,
+                    type: 'HEAD',
+                    contentType: 'text/plain',
+                    complete: function (request) {
+                        console.log(request.getResponseHeader('ETag'));
+                        successCallBack(request.getResponseHeader('ETag'));
+                    },
+                    error: function (jqXHR) {
+                        console.log("webAPI_HEAD - error", jqXHR.status);
+                    }
+                });
+            }
+            function webAPI_GET_ALL(successCallBack, queryString = "") {
+                $.ajax({
+                    url: Host + API + queryString,
+                    type: 'GET',
+                    contentType: 'text/plain',
+                    data: {},
+                    success: (data, status, xhr) => {
+                        let ETag = xhr.getResponseHeader("ETag");
+                        successCallBack(data, ETag);
+                        console.log("webAPI_GET_ALL - success", data);
+                        console.log(`ETag: ${ETag}`);
+                    },
+                    error: function (jqXHR) {
+                        errorCallBack(jqXHR.status);
+                        console.log("webAPI_HEAD - error", jqXHR.status);
+                    }
+                });
+            }
+            function insertDataCell(data) {
+                $("#dataGrid").append($("<div class='dataCell'><div class='text'>" + data + "</div></div>"));
+            }
+            function insertFavicon(url) {
+                let link = $(`<a href='${url}' target='_blank'></a>`)
+                link.append($(`<div class='dataCell'><img class='favicon' src="https://www.google.com/s2/favicons?domain=${url}&sz=48"></div>`));
+                $("#dataGrid").append(link);
+            }
+            function insertDataRow(dataRow) {
+                insertDataCell(dataRow.Category);
+                insertFavicon(dataRow.Url);
+                insertDataCell(dataRow.Title);
+            }
+            
+            function fillDataGrid(dataList, ETag) {
+                currentETag = ETag;
+                $("#dataGrid").empty();
+                let currentCat = "";
+                for (let data of dataList) {
+                    if (currentCat != data.Category)
+                        currentCat = data.Category
+                    else
+                        data.Category = "";
+                    insertDataRow(data);
+                }
+            }
+        </script>
+    </body>
+
+</html>

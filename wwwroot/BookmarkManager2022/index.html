@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Bookmarks Manager</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" rel="stylesheet">
+        <link rel="stylesheet"
+            href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+        <link rel="stylesheet" href="css/site.css">
+        <link rel="icon" href="favicon.ico">
+    </head>
+
+    <body>
+        <div class="mainContainer">
+            <div class="headerPanel">
+                <div class="headerLayout">
+                    <img src="favicon.ico" alt="" data-toggle="tooltip"
+                        title="Gestionnaire de favori - Auteur Nicolas Chourot - Collège Lionel-Groulx">
+                    <span class="header">Gestionnaire de Favoris </span>
+                    <span class="cmd fa fa-plus-square" id="newBookmarkCmd" title="Ajouter un favori"
+                        data-toggle="tooltip"></span>
+                    <span class="cmd fa fa-search" title="Afficher/masquer la barre de recherche"
+                        data-toggle="tooltip"></span>
+                </div>
+                <div id="searchBar">
+                    <div class="searchBarLayout">
+                        <select id="searchCategory" class="form-control">
+                            <!-- filled programmatically-->
+                        </select>
+                        <span>
+                            <!-- skip a column -->
+                        </span>
+                        <input type="search" id="searchTitle" class="form-control" placeholder="Recherche de favoris" />
+                        <span>
+                            <!-- skip a column -->
+                        </span>
+                        <span class="cmd fa fa-refresh"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="scrollContainer">
+                <div id="bookmarksList">
+                    <!-- filled programmatically-->
+                </div>
+            </div>
+            <!-- Dialogs containers-->
+            <div>
+                <div id="bookmarkDlg">
+                    <form id="bookmakForm">
+                        <input type="hidden" id="Id_input" value="0">
+
+                        <label for="title_input">Titre</label>
+                        <input type="text" id="title_input" class="form-control" required invalidMessage="Obligatoire">
+
+                        <label for="url_input">Hyperlien</label>
+                        <input type="url" id="url_input" class="form-control URL" required
+                            invalidMessage="Lien invalide">
+
+                        <label for="category_input">Catégorie</label>
+                        <input type="text" id="category_input" class="form-control" required
+                            invalidMessage="Obligatoire">
+                    </form>
+                </div>
+                <div id="confirmDeleteDlg">
+                    <span id="confirmationMessage"></span>
+                </div>
+                <div id="errorDlg">
+                    <span id="errorMessage"></span>
+                </div>
+            </div>
+        </div>
+        <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.maskedinput/1.4.1/jquery.maskedinput.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+        <script src="js/customValidation.js"></script>
+        <script src="js/api.js"></script>
+        <script defer>
+            const periodicRefreshPeriod = 10;
+            let holdCheckETag = false;
+            let currentETag = "";
+            let createMode = true;
+            let searchCategory = "";
+            let searchTitle = "";
+            let hideSearchBar = true;
+            let bookmarkIdToDelete = 0; // used by confirmDeleteDlg
+            let selectedCategory = "";
+            let previousScrollPosition = 0;
+
+            init_UI();
+            HEAD(checkETag, error);
+            setInterval(() => { HEAD(checkETag, error) }, periodicRefreshPeriod * 1000);
+
+            function checkETag(ETag) {
+                if (!holdCheckETag && ETag != currentETag) {
+                    currentETag = ETag;
+                    getBookmarksList();
+                }
+            }
+
+            function getBookmarksList() {
+                function prepareQueryString() {
+                    let queryString = "?sort=Category&sort=Title";
+                    if (!hideSearchBar) {
+                        selectedCategory = $("#searchCategory").val();
+                        let searchTitle = $("#searchTitle").val();
+                        if (selectedCategory != "")
+                            queryString += "&Category=" + selectedCategory;
+                        if (searchTitle != "")
+                            queryString += "&Title=*" + searchTitle + "*";
+                    }
+                    return queryString;
+                }
+                GET_ALL(refreshBookmarksList, error, prepareQueryString());
+                GET_ALL(refreshCategoryList, error, "?fields=Category");
+            }
+            function refreshCategoryList(categories) {
+                $("#searchCategory").empty();
+                $("#searchCategory").append("<option value=''>Toutes les catégories</option>");
+                for (let item of categories) {
+                    let category = item.Category;
+                    let selected = (selectedCategory == category ? " selected " : "");
+                    $("#searchCategory").append(`<option value='${category}' ${selected}>${category}</option>`);
+                }
+            }
+            function refreshBookmarksList(bookmarks, ETag) {
+                function makeFavicon(url) {
+                    let link = $(`<a href='${url}' target='_blank'></a>`)
+                    link.append($(`<img class='favicon' src="https://www.google.com/s2/favicons?domain=${url}&sz=48">`));
+                    return link;
+                }
+                function insertIntoBookmarkList(bookmark) {
+                    let catElem = $(`<div class="ellipsis">${bookmark.Category}</div>`);
+                    let titElem = $(`<div  class="ellipsis">${bookmark.Title}</div>`);
+                    let editCmd = $(`<div class="cmd editCmd fa fa-pencil-square" bookmarkid="${bookmark.Id}" title="Editer ${bookmark.Title}" data-toggle="tooltip">`);
+                    let deleteCmd = $(`<div class="cmd deleteCmd fa fa-window-close" bookmarkid="${bookmark.Id}" title="Effacer ${bookmark.Title}" data-toggle="tooltip">`);
+                    let bookmarkRow = $("<div class='bookmarkLayout bookmarkRow'>");
+                    bookmarkRow.append(catElem);
+                    bookmarkRow.append(makeFavicon(bookmark.Url));
+                    bookmarkRow.append(titElem);
+                    bookmarkRow.append(editCmd);
+                    bookmarkRow.append(deleteCmd);
+                    $("#bookmarksList").append(bookmarkRow);
+                }
+                currentETag = ETag;
+                previousScrollPosition = $(".scrollContainer").scrollTop();
+                $("#bookmarksList").empty();
+                let currentCategory = "";
+                for (let bookmark of bookmarks) {
+                    if (bookmark.Category !== currentCategory)
+                        currentCategory = bookmark.Category;
+                    else
+                        bookmark.Category = "";
+                    insertIntoBookmarkList(bookmark);
+                }
+                $(".scrollContainer").scrollTop(previousScrollPosition);
+                $(".editCmd").click(e => { editBookmark(e) });
+                $(".deleteCmd").click(e => { deleteBookmark(e) });
+                $('[data-toggle="tooltip"]').tooltip();
+            }
+
+            function error(status) {
+                let errorMessage = "";
+                switch (status) {
+                    case 0:
+                        errorMessage = "Le service ne répond pas";
+                        break;
+                    case 401:
+                        errorMessage = "Requête non autorisée";
+                        break;
+                    case 400:
+                    case 422:
+                        errorMessage = "Requête invalide";
+                        break;
+                    case 404:
+                        errorMessage = "Service ou données introuvables";
+                        break;
+                    case 409:
+                        errorMessage = "Conflits de données: Hyperlien existe déjà";
+                        break;
+                    case 500:
+                        errorMessage = "Erreur interne du service";
+                        break;
+                    default:
+                        errorMessage = "Une erreur est survenue";
+                        break;
+                }
+                $("#errorMessage").text(errorMessage);
+                $("#errorDlg").dialog('open');
+            }
+
+            function newBookmark() {
+                holdCheckETag = true;
+                createMode = true;
+                resetBookmarkForm()
+                $("#bookmarkDlg").dialog('option', 'title', 'Ajout de favori');
+                $("#bookmarkDlgOkBtn").text("Ajouter");
+                $("#bookmarkDlg").dialog('open');
+            }
+            function editBookmark(e) {
+                holdCheckETag = true;
+                createMode = false;
+                GET_ID(e.target.getAttribute("bookmarkid"), bookmarkToForm, error);
+                holdCheckETag = true;
+                $("#bookmarkDlg").dialog('option', 'title', 'Modification de favori');
+                $("#bookmarkDlgOkBtn").text("Modifier");
+                $("#bookmarkDlg").dialog('open');
+            }
+            function deleteBookmark(e) {
+                holdCheckETag = true;
+                bookmarkIdToDelete = e.target.getAttribute("bookmarkid")
+                GET_ID(
+                    bookmarkIdToDelete,
+                    bookmark => {
+                        $("#confirmationMessage").html("Voulez-vous vraiment effacer le favori <b>" + bookmark.Title + "</b>?")
+                    },
+                    error
+                );
+                holdCheckETag = true;
+                $("#confirmDlg").dialog('option', 'title', 'Retrait de favori...');
+                $("#confirmDeleteDlgOkBtn").text("Effacer");
+                $("#confirmDeleteDlg").dialog('open');
+            }
+
+            function resetBookmarkForm() {
+                $("#Id_input").val("0");
+                $("#title_input").val("");
+                $("#url_input").val("");
+                $("#category_input").val("");
+            }
+            function bookmarkFromForm() {
+                if ($("#bookmakForm")[0].checkValidity()) {
+                    let bookmark = { Id: parseInt($("#Id_input").val()), Title: $("#title_input").val(), Url: $("#url_input").val(), Category: $("#category_input").val() };
+                    return bookmark;
+                } else {
+                    $("#bookmakForm")[0].reportValidity()
+                }
+                return false;
+            }
+            function bookmarkToForm(bookmark) {
+                $("#Id_input").val(bookmark.Id);
+                $("#title_input").val(bookmark.Title);
+                $("#url_input").val(bookmark.Url);
+                $("#category_input").val(bookmark.Category);
+            }
+
+            function init_UI() {
+                $("#newBookmarkCmd").click(newBookmark)
+                $("#searchCategory").change(() => { selectedCategory = $("#searchCategory").val(); getBookmarksList(); })
+
+                $(".fa-refresh").click(e => { getBookmarksList() })
+                $(".fa-search").click(e => {
+                    hideSearchBar = !hideSearchBar;
+                    if (hideSearchBar)
+                        $("#searchBar").hide();
+                    else
+                        $("#searchBar").show();
+                    getBookmarksList();
+                })
+
+                $("#bookmarkDlg").dialog({
+                    title: "Nouveau favori",
+                    autoOpen: false,
+                    modal: true,
+                    show: { effect: 'fade', speed: 400 },
+                    hide: { effect: 'fade', speed: 400 },
+                    width: 400,
+                    minWidth: 400,
+                    maxWidth: 500,
+                    height: 440,
+                    minHeight: 440,
+                    maxHeight: 440,
+                    position: { my: "top", at: "top", of: window },
+                    buttons: [{
+                        id: "bookmarkDlgOkBtn",
+                        text: "Title will be changed dynamically",
+                        click: function () {
+                            let bookmark = bookmarkFromForm();
+                            if (bookmark) {
+                                if (createMode)
+                                    POST(bookmark, getBookmarksList(), error);
+                                else
+                                    PUT(bookmark, getBookmarksList(), error);
+                                resetBookmarkForm();
+                                holdCheckETag = false;
+                                $(this).dialog("close");
+                            }
+                        }
+                    },
+                    {
+                        text: "Annuler",
+                        click: function () {
+                            holdCheckETag = false;
+                            $(this).dialog("close");
+                        }
+                    }]
+                });
+
+                $("#confirmDeleteDlg").dialog({
+                    title: "Attention!",
+                    autoOpen: false,
+                    modal: true,
+                    show: { effect: 'fade', speed: 400 },
+                    hide: { effect: 'fade', speed: 400 },
+                    width: 500, minWidth: 500, maxWidth: 500,
+                    height: 230, minHeight: 230, maxHeight: 230,
+                    position: { my: "top", at: "top", of: window },
+                    buttons: [{
+                        id: "confirmDeleteDlgOkBtn",
+                        text: "Oui",
+                        click: function () {
+                            holdCheckETag = false;
+                            if (bookmarkIdToDelete)
+                                DELETE(bookmarkIdToDelete, getBookmarksList(), error);
+                            bookmarkIdToDelete = 0;
+                            $(this).dialog("close");
+                        }
+                    },
+                    {
+                        text: "Annuler",
+                        click: function () {
+                            holdCheckETag = false;
+                            bookmarkIdToDelete = 0;
+                            $(this).dialog("close");
+                        }
+                    }]
+                });
+
+                $("#errorDlg").dialog({
+                    title: "Erreur...",
+                    autoOpen: false,
+                    modal: true,
+                    show: { effect: 'fade', speed: 400 },
+                    hide: { effect: 'fade', speed: 400 },
+                    width: 500, minWidth: 500, maxWidth: 500,
+                    height: 230, minHeight: 230, maxHeight: 230,
+                    position: { my: "top", at: "top", of: window },
+                    buttons: [{
+                        text: "Fermer",
+                        click: function () {
+                            holdCheckETag = false;
+                            bookmarkIdToDelete = 0;
+                            $(this).dialog("close");
+                        }
+                    }]
+                });
+            }
+        </script>
+    </body>
+
+</html>

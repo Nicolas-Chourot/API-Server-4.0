@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta author="Nicolas Chourot">
+        <meta http-equiv="Content-Type" content="text/html; charset= ISO-8859-1">
+        <title>Test Maths API</title>
+
+        <!-- Latest compiled and minified CSS -->
+        <style>
+            body {
+                width: 1200px;
+                margin: auto;
+            }
+
+            input {
+                width: 260px;
+            }
+
+            .container {
+                font-family: 'Courier New', Courier, monospace;
+                font-size: large;
+                font-weight: bold;
+            }
+        </style>
+    </head>
+
+    <body>
+        <!-- Entête de la liste de contact -->
+        <h1>Tests de filtres et de tris</h1>
+        <fieldset>
+            <legend>
+                <h3>Url du service</h3>
+            </legend>
+            <input type="text" id="serviceHost" value="http://localhost:5000" placeholder="host">
+            <fieldset>
+                <legend>Service & querystring</legend>
+
+                <input type="radio" name="querystring" value="/api/contacts?Name=*ss*">/api/contacts?Name=*ss*<br>
+                <input type="radio" name="querystring"
+                    value="/api/contacts?sort=Name,desc&Name=*ss*">/api/contacts?sort=Name,desc&Name=*ss* <br>
+                <input type="radio" name="querystring"
+                    value="/api/bookmarks?sort=Id,desc">/api/bookmarks?sort=Id,desc<br>
+                <input type="radio" name="querystring"
+                    value="/api/contacts?sort=Id,desc&Name=*s*">/api/contacts?sort=Id,desc&Name=*s*<br>
+                <input type="radio" name="querystring"
+                    value="/api/bookmarks?sort=Id,desc&Category=*u*">/api/bookmarks?sort=Id,desc&Category=*u*<br>
+                <input type="radio" name="querystring"
+                    value="/api/bookmarks?sort=Category&sort=Title">/api/bookmarks?sort=Category&sort=Title<br>
+                <input type="radio" name="querystring"
+                    value="/api/bookmarks?sort=Category&sort=Title,desc&Category=*u*">/api/bookmarks?sort=Category&sort=Title,desc&Category=*u*<br>
+            </fieldset>
+
+        </fieldset>
+        <fieldset>
+            <legend>
+                <h3>Tests</h3>
+            </legend>
+            <pre id="container"></pre>
+        </fieldset>
+        <fieldset>
+            <legend>
+                <h3>Verdict</h3>
+            </legend>
+            <div id="verdict"></div>
+        </fieldset>
+        <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
+        <script>
+            "use strict";
+
+            let problems = 0;
+
+            $(document).ready(() => {
+                $("#LaunchTestCMD").on('click', () => {
+                    launchTests($("#serviceHost").val().trim());
+                })
+
+                $("#serviceHelp").on('click', () => {
+                    console.log($("#serviceHost").val().trim());
+                    document.location = $("#serviceHost").val().trim();
+                })
+
+                $('input[type=radio][name=querystring]').change(function () {
+                    launchTests($("#serviceHost").val().trim() + this.value);
+                });
+            });
+
+            async function launchTests(host) {
+                problems = 0;
+                $(".container").empty();
+                $("#verdict").text("Test en cours");
+                if (!(await GET(host, "", showResult))) {
+                    $("#verdict").text("Service introuvable!");
+                } else {
+                    $("#verdict").text("Terminé");
+                }
+            }
+            function showResult(result) {
+                let content = JSON.stringify(result, undefined, 4);
+                let container = document.getElementById('container');
+                container.innerHTML = content;
+            }
+            function GET(service, queryString, successCallBack = null, errorCallBack = null) {
+                return new Promise(resolve => {
+                    $.ajax({
+                        url: service + queryString,
+                        type: 'GET',
+                        success: data => {
+                            if (successCallBack != null) successCallBack(data);
+                            resolve(true);
+                        },
+                        error: function (jqXHR, textStatus, errorThrown) {
+                            if (errorCallBack != null) errorCallBack(errorThrown);
+                            console.log("service - error");
+                            resolve(false);
+                        }
+                    });
+                });
+            }
+        </script>
+    </body>
+
+</html>

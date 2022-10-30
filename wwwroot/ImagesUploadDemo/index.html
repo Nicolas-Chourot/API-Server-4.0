@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Document</title>
+        <style>
+            body {
+                width: 600px;
+                margin: auto;
+            }
+            #base64 {
+                font-size: 0.75em;
+                width: 600px;
+                font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+                border: 1px solid blue;
+                word-wrap: break-word;
+                padding: 4px;
+            }
+            .ImageUploader {
+                align-items: center;
+                width: 600px;
+                height: 344px;  /* 600 X 0,57333 ratio */
+                border: 1px solid lightgray;
+            }
+            div2 {
+                border:1px solid green;
+            }
+        </style>
+    </head>
+
+    <body>
+
+        <div id='photo' class='ImageUploader' defaultImage='images/No_Image.png' waitingImage='images/writing.gif'>
+        </div>
+        <button id="showCode">Voir le code base64</button>
+        <div id="base64"></div>
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+        <script src="js/imageUploader.js"></script>
+        <script defer>
+            $("#showCode").click(function () { $("#base64").text(ImageUploader.getImageData("photo"));})
+            
+        </script>
+    </body>
+
+</html>

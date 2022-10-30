@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <title>Document</title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        <link rel="stylesheet"
+            href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+    </head>
+
+    <body>
+
+        <div id="myDialog">
+            <br>
+            <input class="form-control" id="Name" placeholder="Votre nom"> <br>
+            <input class="form-control" id="Email" placeholder="Votre courriel">
+        </div>
+        <button onclick="showDialog()">Connexion...</button>
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+        <script defer>
+            $("#myDialog").dialog(
+                {
+                    title: "Login",
+                    autoOpen: false,
+                    show: { effect: 'fade', speed: 400 },
+                    hide: { effect: 'fade', speed: 400 },
+                });
+            $("#myDialog").dialog("option", "buttons",
+                [
+                    {
+                        text: "Connexion...",
+                        click: function () {
+                            // todo
+                            $(this).dialog("close");
+                        }
+                    },
+                    {
+                        text: "Annuler",
+                        click: function () {
+                            // todo
+                            $(this).dialog("close");
+                        }
+                    }
+                ]
+            );
+            function showDialog() {
+                $("#myDialog").dialog('open');
+            }
+
+        </script>
+    </body>
+
+</html>

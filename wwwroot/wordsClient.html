@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta author="Nicolas Chourot">
+        <meta http-equiv="Content-Type" content="text/html; charset= ISO-8859-1">
+        <title>Weird Dictionary</title>
+        <style>
+            .wordsContainer {
+                margin: auto;
+                margin-left: 8px;
+                max-width: 1600px;
+                width: 100%;
+                display: grid;
+                grid-gap: 1em;
+                grid-template-columns: repeat(auto-fill, 160px);
+            }
+
+            .link {
+                cursor: pointer;
+            }
+
+            .header {
+                margin: auto;
+                max-width: 1600px;
+            }
+        </style>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        <link rel="stylesheet"
+            href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+
+    </head>
+
+    <body>
+        <h2 class="header">
+            <div class='link glyphicon glyphicon glyphicon-arrow-left' id='previous'> </div>
+            <span class="letter link">*</span>
+            <span class="letter link">A</span>
+            <span class="letter link">B</span>
+            <span class="letter link">C</span>
+            <span class="letter link">D</span>
+            <span class="letter link">E</span>
+            <span class="letter link">F</span>
+            <span class="letter link">G</span>
+            <span class="letter link">H</span>
+            <span class="letter link">I</span>
+            <span class="letter link">J</span>
+            <span class="letter link">K</span>
+            <span class="letter link">L</span>
+            <span class="letter link">M</span>
+            <span class="letter link">N</span>
+            <span class="letter link">O</span>
+            <span class="letter link">P</span>
+            <span class="letter link">Q</span>
+            <span class="letter link">R</span>
+            <span class="letter link">S</span>
+            <span class="letter link">T</span>
+            <span class="letter link">U</span>
+            <span class="letter link">V</span>
+            <span class="letter link">W</span>
+            <span class="letter link">X</span>
+            <span class="letter link">Y</span>
+            <span class="letter link">Z</span>
+            <div class='link glyphicon glyphicon glyphicon-arrow-right' id='next'> </div>
+        </h2>
+        <br>
+        <div id="words" class="wordsContainer">
+
+        </div>
+        <div id='showDefinition'>
+            <div>Def: <span id='def'></span></div>
+            <div>Dom: <span id='dom'></span></div>
+            <div>Con: <span id='con'></span></div>
+            <div>Gen: <span id='gen'></span></div>
+        </div>
+    </body>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            initShowDefinitionDialog();
+            showDefinition('Weird Dictionnary', 'Author: Nicolas Chourot');
+
+            $('#previous').click(function () {
+                if (offset > 0)
+                    offset--;
+                webAPI_GET();
+            });
+            $('#next').click(function () {
+                offset++;
+                webAPI_GET();
+            });
+            $('.letter').click(function () {
+                offset = 0;
+                $('.letter').css('color', 'black');
+                $(this).css('color', 'blue');
+                let selectedLetter = $(this).html();
+                if (selectedLetter == "*")
+                    currentLetter = "";
+                else
+                    currentLetter = selectedLetter;
+                webAPI_GET();
+            })
+            webAPI_GET();
+        })
+        let limit = 60;
+        let offset = 0;
+        let currentLetter = "";
+
+        function initShowDefinitionDialog() {
+            $("#showDefinition").dialog(
+                {
+                    autoOpen: false,
+                    show: { effect: 'fade', speed: 400 },
+                    hide: { effect: 'fade', speed: 400 },
+                });
+        }
+
+        function showDefinition(val, def, dom, con, gen) {
+            $('#showDefinition').dialog('option', 'title', val);
+            $('#def').html(def);
+            $('#dom').html(dom);
+            $('#con').html(con);
+            $('#gen').html(gen);
+            $("#showDefinition").dialog('open');
+        }
+
+        function webAPI_GET() {
+            let queryString = "?limit=" + limit + "&offset=" + offset;
+            if (currentLetter != "*")
+                queryString += "&Val=" + currentLetter + "*";
+            $('#words').empty();
+            $.ajax({
+                url: "http://localhost:5000/api/words" + queryString,
+                type: 'GET',
+                contentType: 'text/plain',
+                data: {},
+                success: words => {
+                    words.forEach(word => {
+                        $('#words').append(`<div class='link word' data-placement='bottom' title='${word.Def}' dom='${word.Dom}' con='${word.Con}' gen='${word.Gen}'>${word.Val}</div>`);
+                    });
+                    $(".word").click(function () {
+                        showDefinition($(this).html(), $(this).attr('title'), $(this).attr('Dom'), $(this).attr('Con'), $(this).attr('gen'));
+                    });
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    console.log("webAPI_GET_ALL - error", jqXHR.status);
+                }
+            });
+
+        }
+    </script>
+
+</html>
