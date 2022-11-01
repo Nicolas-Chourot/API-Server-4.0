@@ -104,6 +104,7 @@ module.exports =
         modify(user) {
             user.Created = utilities.nowInSeconds();
             let foundedUser = this.repository.findByField("Id", user.Id);
+            user.VerifyCode = foundedUser.VerifyCode;
             if (user.Password == '') {
                 user.Password = foundedUser.Password;
             }
