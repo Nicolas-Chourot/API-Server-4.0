@@ -105,9 +105,18 @@ module.exports =
             // Unprocessable Entity status
             this.status(422);
         }
-        badRequest(errorMessage = null) {
+        badRequest() {
             // bad request status
-            this.status(400, errorMessage);
+            this.status(400);
+        }
+        unverifiedUser() {
+            this.status(480);
+        }
+        userNotFound() {
+            this.status(481);
+        }
+        wrongPassword() {
+            this.status(482);
         }
         internalError() {
             // internal error status
@@ -117,4 +126,5 @@ module.exports =
             //Not implemented
             this.status(501);
         }
+
     }

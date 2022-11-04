@@ -30,13 +30,13 @@ module.exports =
                         let newToken = TokenManager.create(user);
                         this.HttpContext.response.JSON(newToken);
                     } else {
-                        this.HttpContext.response.badRequest("Unverified user");
+                        this.HttpContext.response.unverifiedUser();
                     }
                 } else {
-                    this.HttpContext.response.badRequest("Incorrect password");
+                    this.HttpContext.response.wrongPassword();
                 }
             } else {
-                this.HttpContext.response.badRequest("Incorrect email");
+                this.HttpContext.response.userNotFound();
             }
         }
         logout(userId) {
@@ -63,10 +63,11 @@ module.exports =
             gmail.send(user.Email, 'Courriel confirmé...', html);
         }
 
+        //GET : /accounts/verify?id=...&code=.....
         verify() {
             let id = parseInt(this.HttpContext.path.params.id);
             let code = parseInt(this.HttpContext.path.params.code);
-            let userFound = this.repository.get(id);
+            let userFound = this.repository.findByField('Id', id);
             if (userFound) {
                 if (userFound.VerifyCode == code) {
                     userFound.VerifyCode = "verified";
@@ -100,12 +101,12 @@ module.exports =
             } else
                 this.HttpContext.response.unprocessable();
         }
-        // POST:account/modify body payload[{"Id": 0, "Name": "...", "Email": "...", "Password": "..."}]
+        // PUT:account/modify body payload[{"Id": 0, "Name": "...", "Email": "...", "Password": "..."}]
         modify(user) {
             user.Created = utilities.nowInSeconds();
             let foundedUser = this.repository.findByField("Id", user.Id);
-            user.VerifyCode = foundedUser.VerifyCode;
-            if (user.Password == '') {
+            user.VerifyCode = foundedUser.VerifyCode
+            if (user.Password == '') { // password not changed
                 user.Password = foundedUser.Password;
             }
             super.put(user);

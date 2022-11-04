@@ -19,7 +19,7 @@ module.exports =
             this.repository = repository;
         }
         readAuthorization() {
-            if (this.needReadAuthorization) 
+            if (this.needReadAuthorization)
                 return TokenManager.requestAuthorized(this.HttpContext.req)
             return true
         }
