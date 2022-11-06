@@ -81,7 +81,8 @@ class ImageUploader {
         inputFileControl.attr("id", `${id}_ImageUploader`);
         inputFileControl.attr("accept", acceptedFileFormat);
 
-        let imageDataContainer = $(`<input id=${id}_Data style="visibility:hidden; height:0px;">`);
+        //let imageDataContainer = $(`<input id=${id}_Data style="visibility:hidden; height:0px;">`);
+        let imageDataContainer = $(`<input id=${id}_Data style="height:0px;border:1px solid white; width:1px; margin: auto; position:relative; top:-100px; z-index:-1";>`);
         imageUploader.append(imageDataContainer);
 
         // one click will be transmitted to #id_ImageUploader
@@ -99,7 +100,6 @@ class ImageUploader {
         return $(`#${id}_Data`).val();
     }
     static setImageData(id, value) {
-        console.log(value)
         $(`#${id}_Data`).val(value);
     }
     static getWaitingImage(id) {
@@ -109,24 +109,29 @@ class ImageUploader {
         let target = $(`#${id}_ImageContainer`);
         return target.css("background-image").replace(/^url\(['"](.+)['"]\)/, "$1");
     }
+    static imageRequired(id, required) {
+        $(`#${id}_Data`).prop('required', required);
+    }
     static resetImage(id) {
         let target = $(`#${id}`);
+        let url = target.attr("defaultimage");
         this.setImage(id, target.attr("defaultImage"));
         this.clearImageData(id);
     }
     static setImage(id, url) {
         let target = $(`#${id}_ImageContainer`);
-        if (url) {
-            target.css("background-image", `url('${url}')`);
-            // position & size of the background image
-            target.css("background-position", "center");
-            target.css("background-size", "contain");
-            target.css("background-repeat", "no-repeat");
-            // position & size of the image container
-            target.css("flex", "100%");
-            target.css("height", "100%");
-            target.css("width", "100%");
-        }
+        if (url == "")
+            url = $(`#${id}`).attr("defaultImage");
+        target.css("background-image", `url('${url}')`);
+        // position & size of the background image
+        target.css("background-position", "center");
+        target.css("background-size", "contain");
+        target.css("background-repeat", "no-repeat");
+        // position & size of the image container
+        target.css("flex", "1");
+        target.css("height", "100%");
+        target.css("width", "100%");
+        this.clearImageData(id);
     }
     static validExtension(ext) {
         return acceptedFileFormat.indexOf("/" + ext) > 0;

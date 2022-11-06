@@ -24,7 +24,6 @@
                     <span class="header">Gestionnaire d'images </span>
                     <span class="cmd fa fa-plus-square" id="newImageCmd" title="Ajouter un image"
                         data-toggle="tooltip"></span>
-
                 </div>
             </div>
 
@@ -41,17 +40,16 @@
                         <input type="hidden" id="GUID_input" value="">
 
                         <label for="title_input">Titre</label>
-                        <input type="text" id="title_input" class="form-control" required invalidMessage="Obligatoire">
+                        <input type="text" id="title_input" class="form-control" required>
 
                         <label for="decription_input">Description</label>
-                        <textarea id="description_input" class="form-control" required
-                            invalidMessage="Obligatoire"></textarea>
+                        <textarea id="description_input" class="form-control" required></textarea>
 
                         <label for="image">Image</label>
                         <div id='image' class='ImageUploader' defaultImage='images/No_Image.png'
                             waitingImage='images/writing.gif'>
                         </div>
-                        <div style="font-size:12px; color:blue">Cliquez-Déposez une image</div>
+                        <div class="note">Cliquez-Déposez une image</div>
                     </form>
                 </div>
                 <div id="confirmDeleteDlg">
@@ -70,7 +68,7 @@
         <script src="js/api.js"></script>
         <script src="js/date.js"></script>
         <script defer>
-            const periodicRefreshPeriod = 5;
+            const periodicRefreshPeriod = 15;
             let holdCheckETag = false;
             let currentETag = "";
             let createMode = true;
@@ -79,8 +77,8 @@
             let hideSearchBar = true;
             let imageIdToDelete = 0; // used by confirmDeleteDlg
             let selectedCategory = "";
-            let imagesCount = 16;
-            let appendCount = 4;
+            let imagesCount = 50;
+            let appendCount = 3;
             let previousScrollPosition = 0;
             let appendMode = false;
 
@@ -91,11 +89,11 @@
             function checkETag(ETag) {
                 if (!holdCheckETag && ETag != currentETag) {
                     currentETag = ETag;
-                    getimagesList();
+                    getImagesList();
                 }
             }
 
-            function getimagesList(refresh = true) {
+            function getImagesList(refresh = true) {
                 appendMode = !refresh;
                 function prepareQueryString() {
                     let queryString = "";
@@ -111,31 +109,30 @@
             }
             function refreshimagesList(images, ETag) {
                 function insertIntoImageList(image) {
+
                     $("#imagesList").append(
                         $(` 
-                        <div class='imageLayout imageRow'>
-                            <div class='imageHeader'>
-                                <div class="imageTitle">${image.Title}</div>
-                                <div    class="cmd editCmd  fa fa-pencil-square" 
-                                        imageid="${image.Id}" 
-                                        title="Editer ${image.Title}" 
-                                        data-toggle="tooltip">
+                                <div class='imageLayout'>
+                                    <div class='imageHeader'>
+                                        <div class="imageTitle">${image.Title}</div>
+                                        <div    class="cmd editCmd  fa fa-pencil-square" 
+                                                imageid="${image.Id}" 
+                                                title="Editer ${image.Title}" 
+                                                data-toggle="tooltip">
+                                        </div>
+                                        <div    class="cmd deleteCmd fa fa-window-close" 
+                                                imageid="${image.Id}" 
+                                                title="Effacer ${image.Title}" 
+                                                data-toggle="tooltip">
+                                        </div>
+                                    </div>
+                                    <a href="${image.OriginalURL}" target="_blank">
+                                        <div    class='image' 
+                                                style="background-image:url('${image.ThumbnailURL}')">
+                                        </div>
+                                    </a>
+                                    <div class="imageDate">${convertToFrenchDate(parseInt(image.Date))}</div>
                                 </div>
-                                <div    class="cmd deleteCmd fa fa-window-close" 
-                                        imageid="${image.Id}" 
-                                        title="Effacer ${image.Title}" 
-                                        data-toggle="tooltip">
-                                </div>
-                            </div>
-                            <a href="${image.OriginalURL}" target="_blank">
-                                <div    class='imageImage' 
-                                        style="background-image:url('${image.ThumbnailURL}')" 
-                                        title="${image.Description}" 
-                                        data-toggle="tooltip">
-                                </div>
-                            </a>
-                            <div class="imageDate">${convertToFrenchDate(parseInt(image.Date))}</div>
-                        </div>
                         `)
                     );
                 }
@@ -156,16 +153,7 @@
                 $(".showMore").off();
                 $(".editCmd").click(e => { editimage(e) });
                 $(".deleteCmd").click(e => { deleteimage(e) });
-                $(".showMore").click(function (e) {
-                    let parent = $(this).parent();
-                    if (parent.hasClass('partialCollapsed')) {
-                        parent.removeClass('partialCollapsed');
-                        $(this).text("Afficher moins...");
-                    } else {
-                        parent.addClass('partialCollapsed');
-                        $(this).text("Afficher plus...");
-                    }
-                });
+
                 $('[data-toggle="tooltip"]').tooltip();
             }
 
@@ -200,10 +188,10 @@
             }
 
             function newImage() {
-                console.log("newImage")
                 holdCheckETag = true;
                 createMode = true;
                 resetimageForm();
+                ImageUploader.imageRequired('image', true);
                 $("#imageDlg").dialog('option', 'title', "Ajout d'image");
                 $("#imageDlgOkBtn").text("Ajouter");
                 $("#imageDlg").dialog('open');
@@ -213,7 +201,7 @@
                 createMode = false;
                 GET_ID(e.target.getAttribute("imageid"), imageToForm, error);
                 holdCheckETag = true;
-                console.log($(".scrollContainer").scrollTop())
+                ImageUploader.imageRequired('image', false);
                 $("#imageDlg").dialog('option', 'title', "Modification d'image");
                 $("#imageDlgOkBtn").text("Modifier");
                 $("#imageDlg").dialog('open');
@@ -224,16 +212,15 @@
                 GET_ID(
                     imageIdToDelete,
                     image => {
-                        $("#confirmationMessage").html("Voulez-vous vraiment effacer l'image <b>" + image.Title + "</b>?")
+                        $("#confirmationMessage").html("Voulez-vous vraiment effacer l'image <br><b>" + image.Title + "</b>?")
                     },
                     error
                 );
                 holdCheckETag = true;
-                $("#confirmDlg").dialog('option', 'title', 'Retrait de nouvelle...');
+                $("#confirmDlg").dialog('option', 'title', "Retrait d'image'...");
                 $("#confirmDeleteDlgOkBtn").text("Effacer");
                 $("#confirmDeleteDlg").dialog('open');
             }
-
             function resetimageForm() {
                 $("#Id_input").val("0");
                 $("#GUID_input").val("");
@@ -250,7 +237,7 @@
                         Title: $("#title_input").val(),
                         Description: $("#description_input").val(),
                         ImageData: ImageUploader.getImageData('image'),
-                        Date: $("#date_input").val()
+                        Date: parseInt($("#date_input").val())
                     };
                     return image;
                 } else {
@@ -267,6 +254,7 @@
                 $("#description_input").val(image.Description);
                 ImageUploader.setImage('image', image.OriginalURL);
             }
+
 
             function init_UI() {
                 $("#newImageCmd").click(newImage)
@@ -291,11 +279,11 @@
                             let image = imageFromForm();
                             if (image) {
                                 if (createMode) {
-                                    POST(image, getimagesList, error);
+                                    POST(image, getImagesList, error);
                                     $(".scrollContainer").scrollTop(0);
                                 }
                                 else
-                                    PUT(image, getimagesList, error);
+                                    PUT(image, getImagesList, error);
                                 resetimageForm();
                                 holdCheckETag = false;
                                 $(this).dialog("close");
@@ -326,7 +314,7 @@
                         click: function () {
                             holdCheckETag = false;
                             if (imageIdToDelete)
-                                DELETE(imageIdToDelete, getimagesList, error);
+                                DELETE(imageIdToDelete, getImagesList, error);
                             imageIdToDelete = 0;
                             $(this).dialog("close");
                         }
@@ -362,7 +350,7 @@
 
                 $(".scrollContainer").scroll(function () {
                     if ($(".scrollContainer").scrollTop() + $(".scrollContainer").innerHeight() >= $("#imagesList").height()) {
-                        getimagesList(false);
+                        getImagesList(false);
                     }
                 });
             }
