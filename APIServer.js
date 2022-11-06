@@ -12,7 +12,7 @@ module.exports =
     class APIServer {
         constructor(port = process.env.PORT || 5000) {
             this.port = port;
-            this.initMiddlewaresPipeline();
+            this.initMiddlewaresPipeline(); 
             this.accountsRouteConfig();
             this.httpContext = null;
             this.httpServer = require('http').createServer(async (req, res) => { this.handleHttpResquest(req, res) });
@@ -30,7 +30,7 @@ module.exports =
             RouteRegister.add('GET', 'accounts', 'verify');
             RouteRegister.add('GET', 'accounts', 'logout');
             RouteRegister.add('PUT', 'accounts', 'modify');
-            RouteRegister.add('DELETE', 'accounts', 'remove');
+            RouteRegister.add('GET', 'accounts', 'remove');
         }
         static CORS_Prefligth(HttpContext) {
             APIServer.accessControlConfig(HttpContext.res);

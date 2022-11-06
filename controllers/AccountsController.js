@@ -103,13 +103,35 @@ module.exports =
         }
         // PUT:account/modify body payload[{"Id": 0, "Name": "...", "Email": "...", "Password": "..."}]
         modify(user) {
-            user.Created = utilities.nowInSeconds();
-            let foundedUser = this.repository.findByField("Id", user.Id);
-            user.VerifyCode = foundedUser.VerifyCode
-            if (user.Password == '') { // password not changed
-                user.Password = foundedUser.Password;
-            }
-            super.put(user);
+            if (this.writeAuthorization()) {
+                user.Created = utilities.nowInSeconds();
+                let foundedUser = this.repository.findByField("Id", user.Id);
+                user.VerifyCode = foundedUser.VerifyCode
+                if (user.Password == '') { // password not changed
+                    user.Password = foundedUser.Password;
+                }
+                if (this.repository != null) {
+                    let updateResult = this.repository.update(user);
+                    if (updateResult == this.repository.updateResult.ok) {
+                        this.HttpContext.response.ok();
+                        if (user.Email != foundedUser.Email) {
+                            user.VerifyCode = utilities.makeVerifyCode(6);
+                            this.repository.update(user);
+                            this.sendVerificationEmail(user);
+                        }
+                    }
+                    else
+                        if (updateResult == this.repository.updateResult.conflict)
+                            this.HttpContext.response.conflict();
+                        else
+                            if (updateResult == this.repository.updateResult.notfound)
+                                this.HttpContext.response.notFound();
+                            else // this.repository.updateResult.invalid
+                                this.HttpContext.response.unprocessable();
+                } else
+                    this.HttpContext.response.notImplemented();
+            } else
+                this.HttpContext.response.unAuthorized();
         }
         // GET:account/remove/id
         remove(id) { // warning! this is not an API endpoint
