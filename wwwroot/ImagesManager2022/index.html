@@ -98,7 +98,7 @@
                 function prepareQueryString() {
                     let queryString = "";
                     if (appendMode) {
-                        queryString = `?sort=Date,desc&offset=${imagesCount / appendCount}&limit=${appendCount}`;
+                        queryString = `?sort=Date,desc&offset=${Math.trunc(imagesCount / appendCount)}&limit=${appendCount}`;
                         imagesCount += appendCount;
                     } else {
                         queryString = `?sort=Date,desc&offset=${0}&limit=${imagesCount}`;
